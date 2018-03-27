@@ -1,27 +1,30 @@
-
-
-
-
-
-
-
-############ Studentized Residuals to narrow down quickly
-
-res <- residuals(model)
-H <- hatvalues(model)
-sigma <- summary(model)$sigm
-sres <- map_dbl(1:length(res), ~ res[[.]]/(sigma*sqrt(1-H[[.]]))) 
-
-
-############ Cook's D to account for influence 
-
-function (model) 
-{
+function (model, cutoff=4) {
   
-  ifelse(as.character(model@call)[3] == "data.update", data.adapted <- model.frame(model), 
-         data.adapted <- get(as.character(model@call)[3]))
-  original.no.estex <- which(substr(names(fixef(model)), 1, 
-                                    6) != "estex.")
+  
+  #####################################
+  #  Parameters
+  #
+  #  model: Linear Mixed Model (lmerMod class)
+  #  cutoff: cutoff for studentized residuals
+  #
+  #####################################
+  
+  
+  ############ Studentized Residuals to narrow down quickly
+  
+  
+  res <- residuals(model)
+  H <- hatvalues(model)
+  sigma <- summary(model)$sigm
+  sres <- map_dbl(1:length(res), ~ res[[.]]/(sigma*sqrt(1-H[[.]]))) 
+  test = abs(sres) > cutoff
+  
+  model@frame$outlier<-as.factor(test)
+  
+  
+  ############ Cook's D to account for influence ()
+  
+#started from influence.ME package
   n.pred <- length(fixef(model)[original.no.estex])
   if ("(weights)" %in% names(data.adapted)) {
     names(data.adapted)[names(data.adapted) == "(weights)"] <- as.character(model@call$weights)
