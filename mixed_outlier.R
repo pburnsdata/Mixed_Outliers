@@ -1,39 +1,39 @@
 
 #################################################################################
 #
-# Combine Studentized residuals and Cook's D for Mixed Model Outlier Detection
-#   
-#   Get rid of some of the false positives from residuals resulting from obs. hijacking 
-#   influence of real outliers without the ridiculous wait time of removing every obs.
+# Simple Methods for Mixed Model Outlier Detection
 #
 #################################################################################
 
 
-influence_modified <- function (model, cutoff=3) {
+mixed_outliers <- function (model, method =c("Student","Cook's D","Leverage")) {
   
   
   #####################################
   #  Parameters
   #
   #  model: Linear Mixed Model (lmerMod class)
-  #  cutoff: cutoff for studentized residuals
+  #  method: Which Method to use for outlier detection
+  #       - Studentized Residual, Cook's Distance, or Leverage
   #
   #####################################
   
   
-  ############ Studentized Residuals to narrow down
+  ############ Studentized Residuals
   
-  
+  if (method== "Student") {
   res <- residuals(model)
   H <- hatvalues(model)
   sigma <- summary(model)$sigm
   sres <- map_dbl(1:length(res), ~ res[[.]]/(sigma*sqrt(1-H[[.]]))) 
-  test = abs(sres) > cutoff
+  return(sres)
+  }
   
-  
-  ############ Cook's D to slice off some false positives
+  ############ Cook's D
   #Started from influence.ME
   
+  
+  if(method == "Cook's D") {
   ifelse(as.character(model@call)[3] == "data.update", data.adapted <- model.frame(model), 
          data.adapted <- get(as.character(model@call)[3]))
   
@@ -52,8 +52,6 @@ influence_modified <- function (model, cutoff=3) {
     names(data.adapted)[grep("offset", names(data.adapted))] <- gsub("offset\\\\(|\\\\)", 
                                                                      "", names(data.adapted)[grep("offset", names(data.adapted))])
   }
-  
-  data.adapted <- data.adapted[which(data.adapted$outlier==TRUE), , drop=FALSE] #subset so we're only checking those with big residuals
   
   n.obs <- nrow(data.adapted)
   or.fixed <- matrix(ncol = n.pred, nrow = 1, data = fixef(model)[original.no.estex])
@@ -113,6 +111,13 @@ influence_modified <- function (model, cutoff=3) {
   }
 
   return(e)
+ 
+  }
+ 
+  ############# Leverage 
   
+  if (method== "Leverage") {
+      return(hatvalues(model))
+  }
+   
 }
-
